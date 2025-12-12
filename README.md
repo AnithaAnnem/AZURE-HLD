@@ -1,1 +1,450 @@
-# AZURE-HLD
+# Azure Cloud Networking High-Level Design (HLD)
+
+#  Table of Contents
+
+- [1. Introduction](#1-introduction)
+
+- [2. Azure Governance & Identity Layer](#2-azure-governance--identity-layer)  
+  - [2.1 Azure Active Directory (Azure AD / Microsoft Entra ID)](#21-azure-active-directory-azure-ad--microsoft-entra-id)  
+  - [2.2 Management Groups](#22-management-groups)  
+  - [2.3 Subscriptions](#23-subscriptions)  
+  - [2.4 Resource Groups (RGs)](#24-resource-groups-rgs)  
+  - [2.5 Azure Resources](#25-azure-resources)
+
+- [3. Azure Networking Architecture (High-Level)](#3-azure-networking-architecture-high-level)
+
+- [4. Azure Networking Components](#4-azure-networking-components)  
+  - [4.1 Azure Virtual Network (VNet)](#41-azure-virtual-network-vnet)  
+  - [4.2 Azure Application Gateway (Layer 7 + WAF)](#42-azure-application-gateway-layer-7--waf)  
+  - [4.3 Azure VPN Gateway](#43-azure-vpn-gateway)  
+  - [4.4 Azure Load Balancer (Layer 4)](#44-azure-load-balancer-layer-4)  
+  - [4.5 Azure Firewall](#45-azure-firewall)  
+  - [4.6 Azure DNS](#46-azure-dns)  
+  - [4.7 Azure Traffic Manager](#47-azure-traffic-manager)  
+  - [4.8 Azure Front Door](#48-azure-front-door)  
+  - [4.9 Azure Bastion](#49-azure-bastion)  
+  - [4.10 Azure Private Link](#410-azure-private-link)
+
+- [5. Routing & Connectivity](#5-routing--connectivity)  
+  - [5.1 User Defined Routes (UDRs)](#51-user-defined-routes-udrs)  
+  - [5.2 BGP for ExpressRoute](#52-bgp-for-expressroute)  
+  - [5.3 Service Endpoints vs Private Link](#53-service-endpoints-vs-private-link)
+
+- [6. Advanced Security](#6-advanced-security)
+
+- [7. Resiliency & High Availability](#7-resiliency--high-availability)  
+  - [7.1 Multi-Region Architecture](#71-multi-region-architecture)  
+  - [7.2 Disaster Recovery (DR)](#72-disaster-recovery-dr)  
+  - [7.3 Zone-Redundant Components](#73-zone-redundant-components)
+
+- [8. Operational Considerations](#8-operational-considerations)  
+  - [8.1 Infrastructure as Code (IaC)](#81-infrastructure-as-code-iac)  
+  - [8.2 CI/CD Integration](#82-cicd-integration)  
+  - [8.3 Change Management](#83-change-management)
+
+- [9. High-Level Architecture Diagram](#9-high-level-architecture-diagram)
+
+- [10. Conclusion](#10-conclusion)
+
+- [11. References](#11-references)
+
+---
+
+## 1. Introduction
+
+This High-Level Design (HLD) document provides a complete overview of the Azure governance foundation and networking architecture required for enterprise workloads deployed in Microsoft Azure.  
+It includes identity management, resource organization, networking design, security, compliance, operational considerations, and high availability.
+
+---
+
+# 2. Azure Governance & Identity Layer
+
+<img width="841" height="578" alt="image" src="https://github.com/user-attachments/assets/5d8d765d-f112-4c3a-8a3c-fbf0e486ef6f" />
+
+
+## 2.1 Azure Active Directory (Azure AD / Microsoft Entra ID)
+
+Azure AD (Microsoft Entra ID) is the identity and access management service for Azure resources, users, and applications.
+
+---
+
+### **Azure AD Tenant**
+
+A **Tenant** is a dedicated, isolated Azure AD instance assigned to an organization.
+
+**Key points:**
+- Represents an **identity boundary**.  
+- Owns users, groups, enterprise applications, policies.  
+- Each Azure subscription is linked to **one tenant**.  
+- Supports identity governance (PIM, MFA, Conditional Access).
+
+---
+
+### **Azure AD Key Capabilities**
+- Authentication & Authorization  
+- RBAC Integration  
+- MFA, Conditional Access  
+- Identity Governance (PIM, Access Reviews)  
+- Managed Identities & Service Principals  
+- SSO for apps and services  
+
+**Role in Architecture:**
+- Central identity trust layer  
+- Enforces least privilege and Zero Trust  
+- Protects administrative access  
+
+---
+
+## 2.2 Management Groups
+
+Management Groups provide governance across large environments.
+
+**Key Concepts:**
+- Policies and RBAC applied at hierarchy levels  
+- Top-down inheritance  
+- Aligns to corporate organizational structure  
+
+
+
+---
+
+## 2.3 Subscriptions
+
+Subscriptions are boundaries for:
+- Billing  
+- Access  
+- Workload segmentation  
+
+**Strategy:**
+- Production  
+- Non-Production  
+- Shared Services  
+
+---
+
+## 2.4 Resource Groups (RGs)
+Resource Groups logically organize resources.
+
+
+Organized by:
+- Lifecycle  
+- Function  
+- Environment  
+
+Examples:
+- RG-Network-Hub  
+- RG-App-Prod  
+- RG-Identity-Shared  
+
+---
+
+## 2.5 Azure Resources
+
+Resources include VNets, VMs, Gateways, Firewalls, App Gateways, Front Door, and PaaS services.
+
+---
+
+# 3. Azure Networking Architecture (High-Level)
+
+Microsoft Azure uses a **Hub-and-Spoke** topology aligned to the Landing Zone architecture.
+
+<img width="790" height="856" alt="image" src="https://github.com/user-attachments/assets/8efa7611-1dfe-41d9-ae6c-25a6fcec35d8" />
+
+
+**Core Components:**
+- Hub VNet  
+- Spoke VNets  
+- Azure Firewall  
+- VPN/ExpressRoute Gateways  
+- Bastion  
+- Private DNS  
+- Private Link  
+- Load Balancers  
+- App Gateway  
+- Traffic Manager  
+- Front Door  
+
+---
+
+
+# 4. Azure Networking Components 
+
+## 4.1 Azure Virtual Network (VNet)
+<img width="849" height="436" alt="image" src="https://github.com/user-attachments/assets/33f9d2cc-d1d2-4cbc-98d9-752b062b75ac" />
+
+Azure Virtual Network is the core building block of private networking in Azure. It enables resources such as VMs, firewalls, Application Gateways, and PaaS services (via Private Endpoints) to securely communicate with each other.
+VNets are logically isolated and support segmentation using subnets, custom IP ranges, and routing rules. They also support hybrid connectivity using VPN and ExpressRoute.
+
+### Key Features:
+
+Private IP networking
+
+Subnet segmentation
+
+Hybrid connectivity (VPN/ER)
+
+NSG and route table integration
+
+---
+
+## 4.2 Azure Application Gateway (Layer 7 + WAF)
+<img width="734" height="541" alt="image" src="https://github.com/user-attachments/assets/ef41ed5e-b9ad-4ff9-897b-0b7802261d44" />
+
+Azure Application Gateway provides Layer 7 load balancing, meaning traffic is routed based on URL paths, host headers, and cookies rather than IP and ports alone. It supports SSL termination, autoscaling, session affinity, and protection through its integrated Web Application Firewall (WAF).
+
+### Use Cases:
+
+Hosting web applications
+
+Protecting apps using OWASP rules
+
+SSL offloading
+
+Traffic routing based on HTTP(S) metadata
+
+---
+
+## 4.3 Azure VPN Gateway
+<img width="767" height="443" alt="image" src="https://github.com/user-attachments/assets/2801e4f5-90b9-4575-9f15-6446d08d3692" />
+
+VPN Gateway enables encrypted communication between on-premises networks and Azure VNets using IPsec tunnels. It also supports VNet-to-VNet and Point-to-Site VPNs for client remote access.
+
+### Modes Supported:
+
+Site-to-Site (IPsec/IKE)
+
+Point-to-Site VPN
+
+VNet-to-VNet encryption
+
+---
+
+## 4.4 Azure Load Balancer (Layer 4)
+<img width="738" height="390" alt="image" src="https://github.com/user-attachments/assets/56cb262a-8393-4ff4-8520-4ac1fe395f29" />
+
+Azure Load Balancer operates at Layer 4 (TCP/UDP) and is used for distributing traffic across backend resources like Virtual Machines. It supports high performance and is often used for internal application tiers or high-throughput workloads.
+
+### Types:
+
+Public Load Balancer → internet-facing workload
+
+Internal Load Balancer → private-only traffic distribution
+
+---
+
+## 4.5 Azure Firewall
+<img width="1365" height="570" alt="image" src="https://github.com/user-attachments/assets/6abb4546-22bd-4ccc-9e93-938b37efa44d" />
+
+
+Azure Firewall is a cloud-native, fully managed stateful firewall with built-in threat intelligence, filtering, and outbound/inbound rules. It centrally enforces traffic policies for all VNets connected through a hub.
+
+### Capabilities:
+
+Application rules (FQDN filtering)
+
+Network rules (IP/Ports)
+
+Threat intelligence blocking
+
+Secured traffic inspection
+
+---
+
+## 4.6 Azure DNS
+<img width="1256" height="289" alt="image" src="https://github.com/user-attachments/assets/695285a3-26ec-4f64-a8dd-5eb47d09c595" />
+
+Azure DNS provides name resolution for both public and private domains. Internal DNS resolution is required for Private Endpoints, hybrid networks, and service discovery across VNets.
+
+### Features:
+
+Public DNS hosting
+
+Private DNS for internal Azure workloads
+
+Integration with Virtual Networks
+
+---
+
+## 4.7 Azure Traffic Manager
+<img width="635" height="606" alt="image" src="https://github.com/user-attachments/assets/6eb86cbe-13f9-47cd-bb77-35d8917f89c3" />
+
+Traffic Manager uses DNS-based routing to direct users to applications deployed across multiple regions. It enables global traffic distribution based on performance, geographic rules, failover, and weighted routing.
+
+### Use Cases:
+
+Multi-region failover
+
+Performance-based routing
+
+Global application distribution
+
+---
+
+## 4.8 Azure Front Door
+<img width="797" height="297" alt="image" src="https://github.com/user-attachments/assets/28f8d41a-76d2-454b-b0ad-1f03f1efa0cf" />
+
+Azure Front Door is a global edge service that provides secure, fast, and intelligent routing for web applications. It combines CDN performance optimization with WAF security, SSL termination, caching, and Layer 7 routing.
+
+### Capabilities:
+
+Global CDN
+
+TLS termination
+
+Edge caching
+
+---
+
+## 4.9 Azure Bastion
+<img width="972" height="306" alt="image" src="https://github.com/user-attachments/assets/112e8066-c349-4588-bd38-3ecd8f4ade9a" />
+
+
+Azure Bastion allows administrators to securely connect to VMs using RDP/SSH without exposing public IPs. It provides browser-based secure management sessions through the Azure Portal.
+
+### Benefits:
+
+Zero public exposure
+
+Integrated access control
+
+Logging and audit-friendly
+
+---
+
+## 4.10 Azure Private Link
+<img width="727" height="340" alt="image" src="https://github.com/user-attachments/assets/35ec8a00-c198-43c3-ae49-db3dd6a12d04" />
+
+Private Link provides private access to Azure PaaS services (Storage, SQL, Key Vault, etc.) using private IP addresses inside the VNet. It eliminates public exposure and enforces traffic isolation.
+
+### Highlights:
+
+No public internet traffic
+
+Works with Private DNS
+
+Enforces Zero Trust networking
+
+---
+
+# 5. Routing & Connectivity
+
+## 5.1 User Defined Routes (UDRs)
+- Force tunneling to Firewall  
+- Traffic segmentation per subnet  
+- Custom routing for NVAs  
+
+---
+
+## 5.2 BGP for ExpressRoute
+- Dynamic routing  
+- Failover capabilities  
+- Supports ECMP for throughput scaling  
+
+---
+
+## 5.3 Service Endpoints vs Private Link
+
+| Feature | Service Endpoint | Private Link |
+|--------|------------------|--------------|
+| Security | Public IP exposed but restricted | Fully private, no public exposure |
+| Use Case | VM-to-service quick access | Strict private access requirements |
+| DNS | Public DNS | Private DNS required |
+
+---
+
+# 6. Advanced Security
+
+<img width="1006" height="656" alt="image" src="https://github.com/user-attachments/assets/a679706d-78ce-4256-a6f4-9b42e2aeab49" />
+
+
+---
+
+# 7. Resiliency & High Availability
+
+## 7.1 Multi-Region Architecture
+- Active/Active  
+- Active/Passive  
+- Region pairing  
+
+---
+
+## 7.2 Disaster Recovery (DR)
+- Traffic Manager/Front Door failover  
+- Geo-redundant storage  
+- Database replication  
+
+---
+
+## 7.3 Zone-Redundant Components
+- Zone-redundant gateway  
+- Zone-redundant firewall  
+- Zone-redundant application gateway  
+
+---
+
+# 8. Operational Considerations
+
+## 8.1 Infrastructure as Code (IaC)
+- ARM templates  
+- Bicep  
+- Terraform  
+
+---
+
+## 8.2 CI/CD Integration
+- Azure DevOps  
+- GitHub Actions  
+- Automated network deployments  
+
+---
+
+## 8.3 Change Management
+- Document NSG and firewall rule changes  
+- Peer review required for security updates  
+- Approval workflows for production  
+
+---
+
+# End-to-End Azure Deployment Plan
+<img width="894" height="891" alt="image" src="https://github.com/user-attachments/assets/103991d6-41cf-4528-8ccf-38fbfe70d579" />
+
+
+### Stage 1 — Azure Architecture (HLD)
+- Hub-Spoke  
+- App Gateway WAF  
+- Firewall / Bastion / NAT  
+- Prod, Stg, Dev spokes  
+- On-Prem connectivity  
+
+### Stage 2 — Infrastructure as Code (Terraform/Bicep)
+- Build IaC modules for Hub, Spoke, App, Security layers (see 8.1)  
+
+### Stage 3 — Azure DevOps Pipelines (CI/CD)
+- Infra Pipeline  
+- Django CI Pipeline  
+- Django CD Pipeline  
+
+### Stage 4 — Integrate Azure Key Vault
+- Access policies for App Service / AKS via Managed Identity  
+- Key Vault secrets: Django SECRET_KEY, DB password, email creds  
+- App Service Key Vault references  
+- AKS integration via CSI Driver / Pod Identity  
+
+# 9. High-Level Architecture Diagram
+
+<img width="912" height="1884" alt="Secure Application Deployment in Azure using Hub-Spoke Network Topology - visual selection" src="https://github.com/user-attachments/assets/d58bd646-c800-4884-8e8d-5185652ca02a" />
+
+
+---
+
+# 10. Conclusion
+
+This High-Level Design (HLD) establishes a scalable, secure, and enterprise-grade Azure networking foundation aligned with Microsoft’s Landing Zone architecture.
+It ensures proper governance, identity management, security controls, hybrid connectivity, operational readiness, and future scalability for workloads across multiple environments and regions.
+
+# 11. References  
+- [Azure Basics (Udemy Course)](https://www.udemy.com/course/azure-basics-part-1/)
+- [Microsoft Azure Documentation](https://learn.microsoft.com/en-us/azure/)
+---
+
+
