@@ -42,7 +42,8 @@
   - [8.2 CI/CD Integration](#82-cicd-integration)  
   - [8.3 Change Management](#83-change-management)
 
-- [End-to-End Azure Deployment Plan](#end-to-end-azur-deployment-plan)  
+- [End-to-End Azure Deployment Plan](#end-to-end-azure-deployment-plan)
+ 
 
 - [9. High-Level Architecture Diagram](#9-high-level-architecture-diagram)
 
